@@ -171,28 +171,32 @@ recv_body() ->
 %% @doc Receive the body of the HTTP request (defined by Content-Length).
 %%      Will receive up to MaxBody bytes.
 recv_body(MaxBody) ->
-    case get_header_value("expect") of
-        "100-continue" ->
-            start_raw_response({100, gb_trees:empty()});
-        _Else ->
-            ok
-    end,
-    Body = case body_length() of
-               undefined ->
-                   undefined;
-               {unknown_transfer_encoding, Unknown} ->
-                   exit({unknown_transfer_encoding, Unknown});
-               chunked ->
-                   read_chunked_body(MaxBody, []);
-               0 ->
-                   <<>>;
-               Length when is_integer(Length), Length =< MaxBody ->
-                   recv(Length);
-               Length ->
-                   exit({body_too_large, Length})
-           end,
-    put(?SAVE_BODY, Body),
-    Body.
+	case erlang:get(?SAVE_BODY) of
+        undefined ->	
+		    case get_header_value("expect") of
+		        "100-continue" ->
+		            start_raw_response({100, gb_trees:empty()});
+		        _Else ->
+		            ok
+		    end,
+		    Body = case body_length() of
+		               undefined ->
+		                   undefined;
+		               {unknown_transfer_encoding, Unknown} ->
+		                   exit({unknown_transfer_encoding, Unknown});
+		               chunked ->
+		                   read_chunked_body(MaxBody, []);
+		               0 ->
+		                   <<>>;
+		               Length when is_integer(Length), Length =< MaxBody ->
+		                   recv(Length);
+		               Length ->
+		                   exit({body_too_large, Length})
+		           end,
+		    put(?SAVE_BODY, Body),
+		    Body;
+		X -> X
+    end.
 
 
 %% @spec start_response({integer(), ioheaders()}) -> response()
